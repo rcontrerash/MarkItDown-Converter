@@ -31,6 +31,7 @@ python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "ConversorMarkItDown" ^
+    --version-file version_info.txt ^
     --collect-all markitdown ^
     --collect-all magika ^
     app.py

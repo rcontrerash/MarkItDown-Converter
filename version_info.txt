@@ -1,0 +1,36 @@
+# -*- coding: utf-8 -*-
+# Metadatos de version del ejecutable (usado por PyInstaller con --version-file).
+# Editor: Rodrigo Contreras. Motor de conversion: Microsoft MarkItDown.
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          u'040a04b0',
+          [
+            StringStruct(u'CompanyName', u'Rodrigo Contreras'),
+            StringStruct(u'FileDescription', u'Conversor MarkItDown - Potenciado por Microsoft'),
+            StringStruct(u'FileVersion', u'1.0.0.0'),
+            StringStruct(u'InternalName', u'ConversorMarkItDown'),
+            StringStruct(u'LegalCopyright', u'(c) 2026 Rodrigo Contreras. Motor: Microsoft MarkItDown.'),
+            StringStruct(u'OriginalFilename', u'ConversorMarkItDown.exe'),
+            StringStruct(u'ProductName', u'Conversor MarkItDown'),
+            StringStruct(u'ProductVersion', u'1.0.0.0'),
+            StringStruct(u'Comments', u'Potenciado por Microsoft MarkItDown (https://github.com/microsoft/markitdown)')
+          ]
+        )
+      ]
+    ),
+    VarFileInfo([VarStruct(u'Translation', [0x040a, 1200])])
+  ]
+)
