@@ -6,12 +6,23 @@ build/
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+.eggs/
+
+# Entornos virtuales
 .venv/
 venv/
 env/
+ENV/
+.env
 
-# Entornos / editores
+# Herramientas / cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Editores
 .vscode/
 .idea/
 *.log
