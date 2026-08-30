@@ -1,0 +1,21 @@
+# Ejecutables y artefactos de compilacion (se regeneran con build_exe.bat)
+dist/
+build/
+*.exe
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Entornos / editores
+.vscode/
+.idea/
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini

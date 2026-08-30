@@ -1,0 +1,46 @@
+====================================================
+  CONVERSOR MARKITDOWN  -  Instrucciones de uso
+====================================================
+
+Esta herramienta convierte tus documentos a formato Markdown (.md):
+PDF, Word, Excel, PowerPoint, imagenes, HTML, CSV, JSON y mas.
+
+NO necesitas instalar nada. Solo el archivo ConversorMarkItDown.exe
+
+----------------------------------------------------
+COMO USARLA
+----------------------------------------------------
+
+1. Haz doble clic en "ConversorMarkItDown.exe".
+   (La primera vez Windows puede tardar unos segundos en abrir.)
+
+2. Elige una opcion:
+
+   > CONVERTIR UN ARCHIVO
+     - Se abre una ventana para elegir el archivo.
+     - Luego eliges donde y con que nombre guardar el .md.
+
+   > CONVERTIR UNA CARPETA
+     - Eliges la carpeta que contiene tus archivos.
+     - Eliges la carpeta donde guardar los resultados.
+     - Te pregunta si quieres incluir subcarpetas.
+     - Genera un archivo .md por cada documento.
+
+3. En el "Registro" veras el avance y si hubo algun error.
+
+----------------------------------------------------
+NOTAS
+----------------------------------------------------
+
+- Si Windows muestra un aviso de "Windows protegio tu equipo"
+  (SmartScreen), haz clic en "Mas informacion" > "Ejecutar de
+  todas formas". Ocurre porque el .exe no esta firmado
+  digitalmente, pero es seguro.
+
+- Los archivos de audio (mp3/wav) requieren conexion a internet
+  para la transcripcion. El resto funciona sin conexion.
+
+- El resultado siempre son archivos de texto .md que puedes abrir
+  con el Bloc de notas, Word, VS Code, etc.
+
+====================================================
