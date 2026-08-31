@@ -63,25 +63,8 @@ python app.py
 
 ## Firma digital
 
-El `.exe` está firmado con un **certificado autofirmado** ("Rodrigo Contreras")
-y sello de tiempo (DigiCert). Esto **no elimina** el aviso de Windows SmartScreen
+El `.exe` está firmado con un **certificado autofirmado** y sello de tiempo (DigiCert). Esto **no elimina** el aviso de Windows SmartScreen
 en equipos ajenos, porque el certificado no proviene de una Autoridad
 Certificadora (CA) de confianza pública.
 
-- **Distribución pública:** para quitar el aviso por completo se necesita un
-  certificado de firma de código **OV** (la reputación se acumula con las
-  descargas) o **EV** (reputación inmediata) de una CA como Sectigo o DigiCert.
-- **Uso interno / empresa:** en los PCs de destino, importa el certificado
-  público `docs/RodrigoContreras-CodeSigning.cer` en los almacenes
-  *Entidades de certificación raíz de confianza* y *Editores de confianza*
-  (requiere permisos de administrador). Tras ello, Windows reconocerá la firma
-  como válida y no mostrará "Editor desconocido".
-- Si aparece SmartScreen: **"Más información" → "Ejecutar de todas formas"**.
-
-### Volver a firmar tras recompilar
-
-```powershell
-$signtool = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe"
-& $signtool sign /fd SHA256 /a /tr "http://timestamp.digicert.com" /td SHA256 `
-    "dist\ConversorMarkItDown.exe"
 ```
