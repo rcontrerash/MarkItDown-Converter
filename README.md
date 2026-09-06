@@ -35,6 +35,9 @@ No necesitan instalar Python ni nada más.
   esta función).
 - **Cancelar**: detiene un lote en curso (termina el archivo actual y para).
 - **Abrir carpeta de destino**: botón para abrir los resultados al terminar.
+- **Indicador de actividad**: cronómetro del archivo en curso, barra de actividad
+  animada y aviso en el registro si un archivo tarda demasiado. Así se distingue
+  fácilmente un archivo lento de un programa pegado.
 - Registro de avance, barra de progreso y manejo de errores por archivo.
 
 ## Formatos soportados

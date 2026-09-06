@@ -20,12 +20,17 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import traceback
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 APP_TITLE = "Conversor MarkItDown"
-APP_VERSION = "1.1"
+APP_VERSION = "1.2"
+
+# Si un archivo tarda mas de este tiempo (segundos), se avisa en el registro
+# para dejar claro que la app sigue trabajando y no esta pegada.
+SLOW_FILE_WARNING_SECONDS = 60
 
 # Extensiones que MarkItDown suele soportar. Se usan para filtrar en lote.
 SUPPORTED_EXTENSIONS = {
@@ -51,10 +56,18 @@ class MarkItDownApp:
         self._last_output_dir = None  # ultima carpeta con resultados
         self._dnd_enabled = dnd_enabled  # arrastrar y soltar disponible
 
+        # Estado del indicador de actividad (archivo en curso).
+        self._current_file = None      # nombre del archivo que se convierte
+        self._current_idx = 0          # posicion dentro del lote
+        self._current_total = 0        # tamano del lote
+        self._current_start = None     # time.monotonic() al empezar el archivo
+        self._warned_slow = False      # ya se aviso que este archivo tarda
+
         self._build_ui()
         if self._dnd_enabled:
             self._setup_dnd()
         self._poll_log_queue()
+        self._tick()
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
@@ -108,11 +121,14 @@ class MarkItDownApp:
         )
         self.btn_open.pack(side="left", expand=True, fill="x", padx=(6, 0))
 
-        # Barra de progreso
+        # Barra de progreso (avance del lote) + barra de actividad (movimiento
+        # continuo mientras convierte, para que se vea que la app trabaja).
         prog_frame = tk.Frame(self.root)
         prog_frame.pack(fill="x", **pad)
         self.progress = ttk.Progressbar(prog_frame, mode="determinate")
         self.progress.pack(fill="x")
+        self.activity = ttk.Progressbar(prog_frame, mode="indeterminate")
+        self.activity.pack(fill="x", pady=(4, 0))
 
         # Registro de resultados
         log_frame = tk.LabelFrame(self.root, text="Registro")
@@ -215,7 +231,7 @@ class MarkItDownApp:
             if self._cancel.is_set():
                 cancelled = True
                 break
-            self._set_status(f"Convirtiendo {i} de {total}...")
+            self.log_queue.put(("file_start", (i, total, os.path.basename(src))))
             base = os.path.splitext(os.path.basename(src))[0]
             candidate = self._unique_name(out_dir, base, used_names)
             dst = os.path.join(out_dir, candidate)
@@ -240,15 +256,19 @@ class MarkItDownApp:
     def _set_progress(self, value, maximum=None):
         self.log_queue.put(("progress", (value, maximum)))
 
+    def _append_log(self, text):
+        """Escribe una linea en el registro. Solo desde el hilo de la UI."""
+        self.log_text.config(state="normal")
+        self.log_text.insert("end", text + "\n")
+        self.log_text.see("end")
+        self.log_text.config(state="disabled")
+
     def _poll_log_queue(self):
         try:
             while True:
                 kind, payload = self.log_queue.get_nowait()
                 if kind == "log":
-                    self.log_text.config(state="normal")
-                    self.log_text.insert("end", payload + "\n")
-                    self.log_text.see("end")
-                    self.log_text.config(state="disabled")
+                    self._append_log(payload)
                 elif kind == "status":
                     self.status.config(text=payload)
                 elif kind == "progress":
@@ -256,8 +276,18 @@ class MarkItDownApp:
                     if maximum is not None:
                         self.progress.config(maximum=maximum)
                     self.progress.config(value=value)
+                elif kind == "file_start":
+                    # Empieza la conversion de un archivo: arranca el cronometro.
+                    idx, total, name = payload
+                    self._current_idx = idx
+                    self._current_total = total
+                    self._current_file = name
+                    self._current_start = time.monotonic()
+                    self._warned_slow = False
                 elif kind == "done":
                     self._working = False
+                    self._current_file = None  # detiene el cronometro
+                    self.activity.stop()
                     self.btn_file.config(state="normal")
                     self.btn_folder.config(state="normal")
                     self.btn_cancel.config(state="disabled")
@@ -268,6 +298,35 @@ class MarkItDownApp:
         except queue.Empty:
             pass
         self.root.after(100, self._poll_log_queue)
+
+    def _tick(self):
+        """Actualiza el cronometro del archivo en curso (hilo de la UI).
+
+        Mientras este contador avanza, el usuario sabe que la app NO esta
+        pegada: la interfaz sigue respondiendo aunque la conversion tarde.
+        """
+        if self._working and self._current_file and self._current_start is not None:
+            elapsed = time.monotonic() - self._current_start
+            mm, ss = divmod(int(elapsed), 60)
+            clock = f"{mm:02d}:{ss:02d}"
+            prefix = "Cancelando" if self._cancel.is_set() else "Convirtiendo"
+            if self._current_total > 1:
+                self.status.config(
+                    text=f"{prefix} ({self._current_idx}/{self._current_total}): "
+                         f"{self._current_file} - {clock}"
+                )
+            else:
+                self.status.config(
+                    text=f"{prefix}: {self._current_file} - {clock}"
+                )
+            if elapsed >= SLOW_FILE_WARNING_SECONDS and not self._warned_slow:
+                self._warned_slow = True
+                self._append_log(
+                    f"  ... {self._current_file} sigue en proceso "
+                    f"({int(elapsed)}s). El archivo puede ser grande; "
+                    f"la app NO esta pegada."
+                )
+        self.root.after(500, self._tick)
 
     # ---------------------------------------------------------- Motor MID
     def _get_engine(self):
@@ -334,8 +393,8 @@ class MarkItDownApp:
             self._start_worker(self._worker_files, srcs, dst_dir)
 
     def _worker_single(self, src, dst):
-        self._set_status("Convirtiendo...")
         self._set_progress(0, 1)
+        self.log_queue.put(("file_start", (1, 1, os.path.basename(src))))
         self._log(f"\n> Convirtiendo: {src}")
         ok, info = self._convert_one(src, dst)
         self._set_progress(1, 1)
@@ -364,7 +423,7 @@ class MarkItDownApp:
             if self._cancel.is_set():
                 cancelled = True
                 break
-            self._set_status(f"Convirtiendo {i} de {total}...")
+            self.log_queue.put(("file_start", (i, total, os.path.basename(src))))
             base = os.path.splitext(os.path.basename(src))[0]
             candidate = self._unique_name(dst_dir, base, used_names)
             dst = os.path.join(dst_dir, candidate)
@@ -441,7 +500,7 @@ class MarkItDownApp:
             if self._cancel.is_set():
                 cancelled = True
                 break
-            self._set_status(f"Convirtiendo {i} de {total}...")
+            self.log_queue.put(("file_start", (i, total, os.path.basename(src))))
 
             # Espeja la subcarpeta de origen dentro del destino.
             rel_dir = os.path.dirname(rel)
@@ -521,9 +580,12 @@ class MarkItDownApp:
     def _start_worker(self, target, *args):
         self._working = True
         self._cancel.clear()
+        self._current_file = None
+        self._current_start = None
         self.btn_file.config(state="disabled")
         self.btn_folder.config(state="disabled")
         self.btn_cancel.config(state="normal")
+        self.activity.start(12)  # anima la barra de actividad
         t = threading.Thread(target=self._safe_run, args=(target, args), daemon=True)
         t.start()
 
