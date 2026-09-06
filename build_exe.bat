@@ -34,6 +34,7 @@ python -m PyInstaller ^
     --version-file version_info.txt ^
     --collect-all markitdown ^
     --collect-all magika ^
+    --collect-all tkinterdnd2 ^
     app.py
 
 if errorlevel 1 (

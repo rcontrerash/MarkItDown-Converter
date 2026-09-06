@@ -26,10 +26,16 @@ No necesitan instalar Python ni nada más.
 
 ## Funciones
 
-- **Convertir un archivo**: diálogo para elegir el archivo y dónde guardarlo.
+- **Convertir archivo(s)**: elige uno o varios archivos a la vez. Con uno solo se
+  ofrece "Guardar como"; con varios se pide una carpeta de destino.
 - **Convertir una carpeta**: convierte por lotes; genera un `.md` por documento,
-  con opción de incluir subcarpetas.
-- Registro de avance y manejo de errores.
+  con opción de incluir subcarpetas **respetando su estructura** en el destino.
+- **Arrastrar y soltar**: suelta archivos o carpetas sobre la ventana para
+  convertirlos (requiere `tkinterdnd2`; si no está, la app funciona igual sin
+  esta función).
+- **Cancelar**: detiene un lote en curso (termina el archivo actual y para).
+- **Abrir carpeta de destino**: botón para abrir los resultados al terminar.
+- Registro de avance, barra de progreso y manejo de errores por archivo.
 
 ## Formatos soportados
 

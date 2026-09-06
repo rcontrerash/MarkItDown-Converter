@@ -1,2 +1,8 @@
-markitdown[all]
-pyinstaller
+# Dependencias del Conversor MarkItDown.
+# Versiones fijadas para builds reproducibles del .exe.
+# Para actualizar: cambia la version, prueba app.py y recompila con build_exe.bat.
+markitdown[all]==0.0.2
+pyinstaller==6.22.2
+# Arrastrar y soltar (opcional): si no esta instalado, la app funciona igual
+# pero sin drag & drop.
+tkinterdnd2==0.4.3
