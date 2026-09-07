@@ -26,10 +26,14 @@ No necesitan instalar Python ni nada más.
 
 ## Funciones
 
-- **Convertir archivo(s)**: elige uno o varios archivos a la vez. Con uno solo se
-  ofrece "Guardar como"; con varios se pide una carpeta de destino.
+- **Guardar junto al original** (por defecto): cada `.md` se guarda en la **misma
+  carpeta** que su archivo de origen, sin pedir carpeta de destino. Aplica a
+  archivos sueltos, carpetas y arrastrar y soltar. Si ya existe un `.md` con el
+  mismo nombre, se crea una copia numerada (`nombre_1.md`) sin sobrescribir nada.
+  Se puede desactivar con la casilla para elegir una carpeta de destino.
+- **Convertir archivo(s)**: elige uno o varios archivos a la vez.
 - **Convertir una carpeta**: convierte por lotes; genera un `.md` por documento,
-  con opción de incluir subcarpetas **respetando su estructura** en el destino.
+  con opción de incluir subcarpetas **respetando su estructura**.
 - **Arrastrar y soltar**: suelta archivos o carpetas sobre la ventana para
   convertirlos (requiere `tkinterdnd2`; si no está, la app funciona igual sin
   esta función).

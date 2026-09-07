@@ -6,11 +6,13 @@ Convierte archivos (PDF, Word, Excel, PowerPoint, imagenes, HTML, CSV, etc.)
 a formato Markdown (.md) usando el motor oficial MarkItDown de Microsoft.
 
 Funciones:
-  - Convertir uno o varios archivos (elige archivos y donde guardarlos).
+  - Convertir uno o varios archivos.
   - Convertir una carpeta completa (un .md por cada archivo compatible),
-    con opcion de incluir subcarpetas espejando su estructura en el destino.
+    con opcion de incluir subcarpetas.
+  - Por defecto cada .md se guarda junto a su archivo original (sin pedir
+    carpeta de destino); se puede desactivar para elegir una carpeta.
   - Cancelar un lote en curso.
-  - Abrir la carpeta de destino al terminar.
+  - Abrir la carpeta de resultados al terminar.
 
 Interfaz grafica con Tkinter (nativa de Windows).
 """
@@ -26,7 +28,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 APP_TITLE = "Conversor MarkItDown"
-APP_VERSION = "1.2"
+APP_VERSION = "1.3"
 
 # Si un archivo tarda mas de este tiempo (segundos), se avisa en el registro
 # para dejar claro que la app sigue trabajando y no esta pegada.
@@ -39,6 +41,11 @@ SUPPORTED_EXTENSIONS = {
     ".zip", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
     ".mp3", ".wav", ".m4a", ".msg",
 }
+
+# Al escanear carpetas se omiten los .md: convertir Markdown a Markdown no aporta
+# nada y, guardando junto al original, los .md generados se reconvertirian en la
+# siguiente pasada acumulando copias (raiz_1.md, raiz_2.md, ...).
+SCAN_EXTENSIONS = SUPPORTED_EXTENSIONS - {".md"}
 
 
 class MarkItDownApp:
@@ -62,6 +69,9 @@ class MarkItDownApp:
         self._current_total = 0        # tamano del lote
         self._current_start = None     # time.monotonic() al empezar el archivo
         self._warned_slow = False      # ya se aviso que este archivo tarda
+
+        # Guardar cada .md junto al archivo original (sin elegir carpeta destino).
+        self.same_folder_var = tk.BooleanVar(value=True)
 
         self._build_ui()
         if self._dnd_enabled:
@@ -104,6 +114,16 @@ class MarkItDownApp:
             cursor="hand2",
         )
         self.btn_folder.pack(side="left", expand=True, fill="x", padx=(6, 0))
+
+        # Opcion: guardar cada .md junto al archivo original (sin pedir carpeta).
+        options = tk.Frame(self.root)
+        options.pack(fill="x", padx=12)
+        self.chk_same_folder = tk.Checkbutton(
+            options,
+            text="Guardar cada .md junto al archivo original (sin elegir carpeta)",
+            variable=self.same_folder_var, font=("Segoe UI", 9), cursor="hand2",
+        )
+        self.chk_same_folder.pack(anchor="w")
 
         # Botones secundarios: cancelar y abrir carpeta
         secondary = tk.Frame(self.root)
@@ -151,6 +171,8 @@ class MarkItDownApp:
         self.status.pack(fill="x", side="bottom")
 
         self._log("Bienvenido. Elige 'Convertir archivo(s)' o 'Convertir una carpeta'.")
+        self._log("Por defecto, cada .md se guarda junto a su archivo original "
+                  "(sin pedir carpeta de destino).")
         if self._dnd_enabled:
             self._log("Consejo: tambien puedes arrastrar archivos o carpetas a esta ventana.")
 
@@ -170,6 +192,11 @@ class MarkItDownApp:
         # tk.splitlist maneja correctamente rutas con espacios ({...}).
         paths = [p for p in self.root.tk.splitlist(event.data) if os.path.exists(p)]
         if not paths:
+            return
+
+        # Modo "junto al original": no se pregunta carpeta de destino.
+        if self.same_folder_var.get():
+            self._start_worker(self._worker_same_dropped, paths)
             return
 
         # Un unico archivo: se ofrece "Guardar como".
@@ -206,7 +233,7 @@ class MarkItDownApp:
                 folder = os.path.basename(os.path.normpath(p))
                 for root_dir, _dirs, names in os.walk(p):
                     for n in names:
-                        if os.path.splitext(n)[1].lower() in SUPPORTED_EXTENSIONS:
+                        if os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
                             full = os.path.join(root_dir, n)
                             rel = os.path.relpath(full, p)
                             out_dir = os.path.join(dst_dir, folder, os.path.dirname(rel))
@@ -370,6 +397,11 @@ class MarkItDownApp:
             return
         srcs = list(srcs)
 
+        # Modo "junto al original": no se pregunta carpeta de destino.
+        if self.same_folder_var.get():
+            self._start_worker(self._worker_same_files, srcs)
+            return
+
         if len(srcs) == 1:
             # Un solo archivo: se mantiene el dialogo "Guardar como".
             src = srcs[0]
@@ -448,17 +480,21 @@ class MarkItDownApp:
         if not src_dir:
             return
 
+        include_sub = messagebox.askyesno(
+            "Subcarpetas",
+            "Incluir tambien los archivos de las subcarpetas?",
+        )
+
+        # Modo "junto al original": cada .md se guarda en la carpeta de su archivo.
+        if self.same_folder_var.get():
+            self._start_worker(self._worker_same_folder, src_dir, include_sub)
+            return
+
         dst_dir = filedialog.askdirectory(
             title="Selecciona la carpeta donde guardar los .md"
         )
         if not dst_dir:
             return
-
-        include_sub = messagebox.askyesno(
-            "Subcarpetas",
-            "Incluir tambien los archivos de las subcarpetas?\n\n"
-            "(Se respetara la estructura de carpetas en el destino.)",
-        )
 
         self._start_worker(self._worker_folder, src_dir, dst_dir, include_sub)
 
@@ -469,7 +505,7 @@ class MarkItDownApp:
         if include_sub:
             for root_dir, _dirs, names in os.walk(src_dir):
                 for n in names:
-                    if os.path.splitext(n)[1].lower() in SUPPORTED_EXTENSIONS:
+                    if os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
                         full = os.path.join(root_dir, n)
                         rel = os.path.relpath(full, src_dir)
                         files.append((full, rel))
@@ -477,7 +513,7 @@ class MarkItDownApp:
             for n in os.listdir(src_dir):
                 full = os.path.join(src_dir, n)
                 if os.path.isfile(full) and \
-                        os.path.splitext(n)[1].lower() in SUPPORTED_EXTENSIONS:
+                        os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
                     files.append((full, n))
 
         total = len(files)
@@ -533,7 +569,12 @@ class MarkItDownApp:
         used_names.add(os.path.join(out_dir, candidate))
         return candidate
 
-    def _finish_batch(self, ok_count, err_count, dst_dir, cancelled):
+    def _finish_batch(self, ok_count, err_count, dst_dir, cancelled, same_folder=False):
+        # Linea que indica donde quedaron los .md.
+        if same_folder:
+            location = "Guardados junto a cada archivo original."
+        else:
+            location = f"Guardados en:\n{dst_dir}"
         if cancelled:
             self._log(f"\nCancelado por el usuario. "
                       f"Correctos: {ok_count} | Con error: {err_count}")
@@ -542,8 +583,7 @@ class MarkItDownApp:
             self._popup_info(
                 "Cancelado",
                 f"Conversion cancelada.\n\n"
-                f"Convertidos: {ok_count}\nCon error: {err_count}\n\n"
-                f"Guardados en:\n{dst_dir}",
+                f"Convertidos: {ok_count}\nCon error: {err_count}\n\n{location}",
             )
             return
         self._log(f"\nFinalizado. Correctos: {ok_count} | Con error: {err_count}")
@@ -552,9 +592,92 @@ class MarkItDownApp:
         self._popup_info(
             "Lote completado",
             f"Conversion finalizada.\n\n"
-            f"Convertidos: {ok_count}\nCon error: {err_count}\n\n"
-            f"Guardados en:\n{dst_dir}",
+            f"Convertidos: {ok_count}\nCon error: {err_count}\n\n{location}",
         )
+
+    # ------------------------------------------- Modo "junto al original"
+    def _run_jobs(self, jobs, open_dir):
+        """Convierte una lista de trabajos (src, out_dir, nombre) guardando cada
+        .md en la carpeta de su archivo original. Copia numerada si ya existe."""
+        total = len(jobs)
+        if total == 0:
+            self._log("No se encontraron archivos compatibles.")
+            self._set_status("Sin archivos compatibles.")
+            self.log_queue.put(("done", None))
+            self._popup_info("Sin archivos",
+                             "No se encontraron archivos compatibles.")
+            return
+
+        self._log(f"\n> Se procesaran {total} archivo(s). "
+                  f"Cada .md se guarda junto a su archivo original...")
+        self._set_progress(0, total)
+        ok_count = err_count = 0
+        used_names = set()
+        cancelled = False
+
+        for i, (src, out_dir, disp) in enumerate(jobs, start=1):
+            if self._cancel.is_set():
+                cancelled = True
+                break
+            self.log_queue.put(("file_start", (i, total, os.path.basename(src))))
+            base = os.path.splitext(os.path.basename(src))[0]
+            # _unique_name evita sobrescribir cualquier .md existente, incluido
+            # el propio archivo de origen si este ya era .md.
+            candidate = self._unique_name(out_dir, base, used_names)
+            dst = os.path.join(out_dir, candidate)
+            ok, info = self._convert_one(src, dst)
+            if ok:
+                ok_count += 1
+                self._log(f"  [{i}/{total}] OK: {disp} -> {candidate}")
+            else:
+                err_count += 1
+                self._log(f"  [{i}/{total}] ERROR: {disp} :: {info}")
+            self._set_progress(i, total)
+
+        self._finish_batch(ok_count, err_count, open_dir, cancelled, same_folder=True)
+
+    def _worker_same_files(self, srcs):
+        """Archivos sueltos: cada .md junto a su archivo original."""
+        jobs = [(s, os.path.dirname(s), os.path.basename(s)) for s in srcs]
+        open_dir = os.path.dirname(srcs[0]) if srcs else None
+        self._run_jobs(jobs, open_dir)
+
+    def _worker_same_folder(self, src_dir, include_sub):
+        """Carpeta: cada .md junto a su archivo original (respeta subcarpetas)."""
+        self._set_status("Buscando archivos...")
+        jobs = []
+        if include_sub:
+            for root_dir, _dirs, names in os.walk(src_dir):
+                for n in names:
+                    if os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
+                        full = os.path.join(root_dir, n)
+                        jobs.append((full, root_dir, os.path.relpath(full, src_dir)))
+        else:
+            for n in os.listdir(src_dir):
+                full = os.path.join(src_dir, n)
+                if os.path.isfile(full) and \
+                        os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
+                    jobs.append((full, src_dir, n))
+        self._run_jobs(jobs, src_dir)
+
+    def _worker_same_dropped(self, paths):
+        """Arrastrar y soltar: cada .md junto a su archivo original."""
+        self._set_status("Preparando archivos...")
+        jobs = []
+        for p in paths:
+            if os.path.isfile(p):
+                jobs.append((p, os.path.dirname(p), os.path.basename(p)))
+            elif os.path.isdir(p):
+                parent = os.path.dirname(os.path.normpath(p))
+                for root_dir, _dirs, names in os.walk(p):
+                    for n in names:
+                        if os.path.splitext(n)[1].lower() in SCAN_EXTENSIONS:
+                            full = os.path.join(root_dir, n)
+                            jobs.append((full, root_dir, os.path.relpath(full, parent)))
+        first = paths[0] if paths else None
+        open_dir = (os.path.dirname(first) if first and os.path.isfile(first)
+                    else first)
+        self._run_jobs(jobs, open_dir)
 
     def on_cancel(self):
         if self._working:
